@@ -40,6 +40,8 @@ distribution.
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #include <signal.h>
+#include <sys/fcntl.h>
+#include <semaphore.h>
 
 #define DFhackCExport extern "C" __attribute__ ((visibility("default")))
 
@@ -47,6 +49,7 @@ distribution.
 int counter = 0;
 int errorstate = 0;
 char *shm = 0;
+sem_t *mutex = 0;
 int shmid = 0;
 bool inited = 0;
 
@@ -78,7 +81,7 @@ void SHM_Init ( void )
     inited = true;
     
     // name for the segment
-    key_t key = 123466;
+    key_t key = SHM_KEY;
     
     // find previous segment, check if it's used by some processes.
     // if it isn't, kill it with fire
@@ -92,6 +95,20 @@ void SHM_Init ( void )
             fprintf(stderr,"dfhack: killed dangling resources from crashed DF.\n");
         }
     }
+    mutex = sem_open("/DF_semaphore",O_CREAT | O_EXCL ,S_IRWXU, 1 );
+    if(mutex == SEM_FAILED)
+    {
+        perror("killing dangling semaphore");
+        sem_unlink("/DF_semaphore");
+        mutex = sem_open("/DF_semaphore",O_CREAT | O_EXCL ,S_IRWXU, 1 );
+        if(mutex == SEM_FAILED)
+        {
+            perror("killing failed >:(");
+            errorstate = 1;
+            return;
+        }
+    }
+    
     // create the segment, make sure only ww are really creating it
     if ((shmid = shmget(key, SHM_SIZE, IPC_CREAT | IPC_EXCL | 0600)) < 0)
     {
@@ -107,6 +124,7 @@ void SHM_Init ( void )
         errorstate = 1;
         return;
     }
+    
     full_barrier
     // make sure we don't stall or do crazy stuff
     ((shm_cmd *)shm)->pingpong = DFPP_RUNNING;
@@ -126,6 +144,10 @@ void SHM_Destroy ( void )
         shmctl(shmid,IPC_RMID,NULL);
         fprintf(stderr,"dfhack: destroyed shared segment.\n");
         inited = false;
+    }
+    if(mutex != SEM_FAILED)
+    {
+        sem_unlink("/DF_semaphore");
     }
 }
 

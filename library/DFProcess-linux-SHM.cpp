@@ -31,6 +31,7 @@ distribution.
 #include <sys/time.h>
 #include <time.h>
 #include <sched.h>
+#include <semaphore.h>
 
 using namespace DFHack;
 
@@ -45,6 +46,7 @@ class SHMProcess::Private
         my_descriptor = NULL;
         my_pid = 0;
         my_shm = 0;
+        mutex = 0;
         my_shmid = -1;
         my_window = NULL;
         attached = false;
@@ -56,6 +58,7 @@ class SHMProcess::Private
     DFWindow * my_window;
     pid_t my_pid;
     char *my_shm;
+    sem_t * mutex;
     int my_shmid;
     
     bool attached;
@@ -106,18 +109,26 @@ bool SHMProcess::Private::waitWhile (DF_PINGPONG state)
 
 bool SHMProcess::Private::DF_TestBridgeVersion(bool & ret)
 {
+    sem_wait(mutex);
     ((shm_cmd *)my_shm)->pingpong = DFPP_VERSION;
-    gcc_barrier
+    sem_post(mutex);
+    
+    
     if(!waitWhile(DFPP_VERSION))
         return false;
-    gcc_barrier
+    
+    
+    sem_wait(mutex);
     ((shm_cmd *)my_shm)->pingpong = DFPP_SUSPENDED;
     ret =( ((shm_retval *)my_shm)->value == PINGPONG_VERSION );
+    sem_post(mutex);
+    
     return true;
 }
 
 bool SHMProcess::Private::DF_GetPID(pid_t & ret)
 {
+    sem_wait(mutex);
     ((shm_cmd *)my_shm)->pingpong = DFPP_PID;
     gcc_barrier
     if(!waitWhile(DFPP_PID))
@@ -125,6 +136,7 @@ bool SHMProcess::Private::DF_GetPID(pid_t & ret)
     gcc_barrier
     ((shm_cmd *)my_shm)->pingpong = DFPP_SUSPENDED;
     ret = ((shm_retval *)my_shm)->value;
+    
     return true;
 }
 
@@ -160,6 +172,13 @@ SHMProcess::SHMProcess(vector <memory_info *> & known_versions)
     {
         fprintf(stderr,"dfhack: %d : invalid no. of processes connected\n", (int) descriptor.shm_nattch);
         fprintf(stderr,"detach: %d",shmdt(d->my_shm));
+        return;
+    }
+    
+    d->mutex = sem_open("/DF_semaphore", 0);
+    if(d->mutex == SEM_FAILED)
+    {
+        fprintf(stderr,"can't get DF's semaphore");
         return;
     }
     
