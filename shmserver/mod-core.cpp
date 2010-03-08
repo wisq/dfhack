@@ -285,7 +285,7 @@ void SHM_Act (void)
             }
             if(cmd.type == CANCELLATION) // cancellation - client called a resume command and doesn't expect any response
             {
-                pthread_mutex_unlock(&mutexes->mutex);
+                // pthread_mutex_unlock(&mutexes->mutex);
                 return; // ALERT: loop exit point!
             }
             else if(cmd.type == CLIENT_WAIT)

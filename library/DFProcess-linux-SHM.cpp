@@ -384,8 +384,8 @@ bool Process::suspend()
     
     pthread_mutex_lock(&d->mutexes->mutex);
     D_SHMCMD = CORE_SUSPEND;
-    //pthread_cond_signal(d->cond_set_by_cl);
     // wait for server to respond
+    pthread_cond_signal(&d->mutexes->cond_set_by_cl);
     pthread_cond_wait(&d->mutexes->cond_set_by_sv,&d->mutexes->mutex);
     
     d->suspended = true;
