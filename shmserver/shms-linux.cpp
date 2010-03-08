@@ -40,6 +40,9 @@ distribution.
 #include "mod-core.h"
 #include <sched.h>
 
+#include <pthread.h>
+#include <time.h>
+
 #define DFhackCExport extern "C" __attribute__ ((visibility("default")))
 
 // various crud
@@ -48,6 +51,7 @@ int errorstate = 0;
 char *shm = 0;
 int shmid = 0;
 bool inited = 0;
+synchro * mutexes = 0;
 
 /*******************************************************************************
 *                           SHM part starts here                               *
@@ -115,10 +119,30 @@ void SHM_Init ( void )
         errorstate = 1;
         return;
     }
-    full_barrier
-    // make sure we don't stall or do crazy stuff
-    ((shm_cmd *)shm)->pingpong = CORE_RUNNING;
+    
+    // init communication basics
+    mutexes = (synchro *) (shm + SHM_SYNC);
+    if(pthread_mutexattr_init(&mutexes->mattr)) perror("1");
+        
+    if(pthread_mutexattr_setpshared(&mutexes->mattr,true)) perror("2");
+    if(pthread_mutex_init (&mutexes->mutex, &mutexes->mattr)) perror("3");
+    
+    
+    if(pthread_condattr_init(&mutexes->clattr)) perror("4");
+    if(pthread_condattr_setpshared(&mutexes->clattr,true)) perror("5");
+    if(pthread_cond_init (&mutexes->cond_set_by_cl, &mutexes->clattr)) perror("6");
+    
+    if(pthread_condattr_init(&mutexes->svattr)) perror("7");
+    if(pthread_condattr_setpshared(&mutexes->svattr,true)) perror("8");
+    if(pthread_cond_init (&mutexes->cond_set_by_sv, &mutexes->svattr)) perror("9");
+    
+    ((shm_cmd *)shm)->pingpong = CORE_RUNNING; // we start out with nothing attached
     InitModules();
+}
+
+inline bool lock_set_wait (uint32_t command)
+{
+    pthread_mutex_lock(&mutexes->mutex);
 }
 
 void SHM_Destroy ( void )

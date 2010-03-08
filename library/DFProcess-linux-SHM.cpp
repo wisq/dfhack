@@ -32,6 +32,7 @@ distribution.
 #include <sys/time.h>
 #include <time.h>
 #include <sched.h>
+#include <pthread.h>
 
 using namespace DFHack;
 
@@ -52,6 +53,7 @@ class Process::Private
         suspended = false;
         identified = false;
         useYield = false;
+        mutexes = 0;
     };
     ~Private(){};
     memory_info * my_descriptor;
@@ -60,6 +62,8 @@ class Process::Private
     char *my_shm;
     int my_shmid;
     Process* q;
+    
+    synchro * mutexes;
     
     bool attached;
     bool suspended;
@@ -84,8 +88,11 @@ class Process::Private
 Yeah. with no way to synchronize things (locks are slow, the OS doesn't give us enough control over scheduling)
 we end up with this silly thing
 */
+
 bool Process::Private::waitWhile (uint32_t state)
 {
+    // wait for remote state change
+    /*
     uint32_t cnt = 0;
     struct shmid_ds descriptor;
     while (SHMCMD == state)
@@ -118,14 +125,10 @@ bool Process::Private::waitWhile (uint32_t state)
         cerr << "shm server error!" << endl;
         assert (false);
         return false;
-    }
+    }*/
     return true;
 }
 
-/*
-Yeah. with no way to synchronize things (locks are slow, the OS doesn't give us enough control over scheduling)
-we end up with this silly thing
-*/
 bool Process::waitWhile (uint32_t state)
 {
     return d->waitWhile(state);
@@ -133,24 +136,32 @@ bool Process::waitWhile (uint32_t state)
 
 bool Process::Private::DF_TestBridgeVersion(bool & ret)
 {
+    if(!suspended) return false;
+    
+    // set command
     SHMCMD = CORE_GET_VERSION;
-    gcc_barrier
-    if(!waitWhile(CORE_GET_VERSION))
-        return false;
-    gcc_barrier
-    SHMCMD = CORE_SUSPENDED;
+    pthread_cond_signal(&mutexes->cond_set_by_cl);
+    
+    // wait for response
+    pthread_cond_wait(&mutexes->cond_set_by_sv, &mutexes->mutex);
+    
+    // return
     ret =( SHMHDR->value == CORE_VERSION );
     return true;
 }
 
 bool Process::Private::DF_GetPID(pid_t & ret)
 {
+    if(!suspended) return false;
+    
+    // set command
     SHMCMD = CORE_GET_PID;
-    gcc_barrier
-    if(!waitWhile(CORE_GET_PID))
-        return false;
-    gcc_barrier
-    SHMCMD = CORE_SUSPENDED;
+    pthread_cond_signal(&mutexes->cond_set_by_cl);
+
+    // wait for response
+    pthread_cond_wait(&mutexes->cond_set_by_sv, &mutexes->mutex);
+    
+    // return
     ret = SHMHDR->value;
     return true;
 }
@@ -160,21 +171,21 @@ uint32_t OS_getAffinity()
     cpu_set_t mask;
     sched_getaffinity(0,sizeof(cpu_set_t),&mask);
     // FIXME: truncation
-        uint32_t affinity = *(uint32_t *) &mask;
-        return affinity;
+    uint32_t affinity = *(uint32_t *) &mask;
+    return affinity;
 }
 
 void Process::Private::DF_SyncAffinity( void )
 {
+    if(!suspended) return; // meh
+    
+    // set command
     SHMHDR->value = OS_getAffinity();
-    gcc_barrier
     SHMCMD = CORE_SYNC_YIELD;
-    gcc_barrier
-    if(!waitWhile(CORE_SYNC_YIELD))
-        return;
-    gcc_barrier
-    SHMCMD = CORE_SUSPENDED;
+    pthread_cond_signal(&mutexes->cond_set_by_cl);
+    pthread_cond_wait(&mutexes->cond_set_by_sv,&mutexes->mutex);
     useYield = SHMHDR->value;
+    
     #ifdef DEBUG
     if(useYield) cerr << "Using Yield!" << endl;
     #endif
@@ -204,7 +215,7 @@ Process::Process(vector <memory_info *> & known_versions)
     }
     
     /*
-     * Check if there are two processes connected to the segment
+     * Check if there are two processes connected to the segment - us and the server
      */
     shmid_ds descriptor;
     shmctl(d->my_shmid, IPC_STAT, &descriptor); 
@@ -214,6 +225,11 @@ Process::Process(vector <memory_info *> & known_versions)
         fprintf(stderr,"detach: %d",shmdt(d->my_shm));
         return;
     }
+
+    d->mutexes = (synchro *) (d->my_shm + SHM_SYNC);
+    
+    // we lock and suspend!
+    suspend();
     
     /*
      * Test bridge version, will also detect when we connect to something that doesn't respond
@@ -364,43 +380,41 @@ void Process::getMemRanges( vector<t_memrange> & ranges )
 
 bool Process::suspend()
 {
-    if(!d->attached)
-    {
-        return false;
-    }
-    if(d->suspended)
-    {
-        return true;
-    }
+    if(d->suspended) return true;
+    
+    pthread_mutex_lock(&d->mutexes->mutex);
     D_SHMCMD = CORE_SUSPEND;
-    if(!waitWhile(CORE_SUSPEND))
-    {
-        return false;
-    }
+    //pthread_cond_signal(d->cond_set_by_cl);
+    // wait for server to respond
+    pthread_cond_wait(&d->mutexes->cond_set_by_sv,&d->mutexes->mutex);
+    
     d->suspended = true;
     return true;
 }
 
+// FIXME: has to be bullet-proof
 bool Process::asyncSuspend()
 {
-    if(!d->attached)
+    if(!d->suspended)
     {
-        return false;
+        pthread_mutex_lock(&d->mutexes->mutex);
+        if(D_SHMCMD == CORE_SUSPENDED)
+        {
+            // consume the signalled state
+            pthread_cond_wait(&d->mutexes->cond_set_by_sv,&d->mutexes->mutex);
+            d->suspended = true;
+            return true;
+        }
+        else
+        {
+            D_SHMCMD = CORE_SUSPEND;
+            pthread_cond_signal(&d->mutexes->cond_set_by_cl);
+            // we don't wait here!
+            pthread_mutex_unlock(&d->mutexes->mutex);
+            return false;
+        }
     }
-    if(d->suspended)
-    {
-        return true;
-    }
-    if(D_SHMCMD == CORE_SUSPENDED)
-    {
-        d->suspended = true;
-        return true;
-    }
-    else
-    {
-        D_SHMCMD = CORE_SUSPEND;
-        return false;
-    }
+    return true;
 }
 
 bool Process::forceresume()
@@ -410,11 +424,9 @@ bool Process::forceresume()
 
 bool Process::resume()
 {
-    if(!d->attached)
-        return false;
-    if(!d->suspended)
-        return true;
     D_SHMCMD = CORE_RUNNING;
+    pthread_cond_signal(&d->mutexes->cond_set_by_cl);
+    pthread_mutex_unlock(&d->mutexes->mutex);
     d->suspended = false;
     return true;
 }

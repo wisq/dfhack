@@ -3,6 +3,7 @@
 
 #define SHM_KEY 123466
 #define SHM_HEADER 1024 // 1kB reserved for a header
+#define SHM_SYNC 512 // second half of the header is reserved for synchronization primitives
 #define SHM_BODY 1024*1024 // 1MB reserved for bulk data transfer
 #define SHM_SIZE SHM_HEADER+SHM_BODY
 
@@ -10,8 +11,25 @@
 // FIXME: add YIELD for linux, add single-core and multi-core compile targets for optimal speed
 #ifdef LINUX_BUILD
     // a full memory barrier! better be safe than sorry.
+    #include <pthread.h>
     #define full_barrier asm volatile("" ::: "memory"); __sync_synchronize();
     #define SCHED_YIELD sched_yield(); // a requirement for single-core
+    
+// lawfull evil
+struct synchro
+{
+    pthread_mutex_t mutex;
+    pthread_mutexattr_t mattr;
+    
+    pthread_cond_t cond_set_by_cl;
+    pthread_condattr_t clattr;
+    
+    pthread_cond_t cond_set_by_sv;
+    pthread_condattr_t svattr;
+};
+    
+    
+    
 #else
     // we need windows.h for Sleep()
     #define _WIN32_WINNT 0x0501 // needed for INPUT struct

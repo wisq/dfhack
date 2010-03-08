@@ -32,6 +32,7 @@ distribution.
 #include <string.h>
 #include <string>
 #include <vector>
+#include <pthread.h>
 
 #define SHM_INTERNAL // for things only visible to the SHM
 
@@ -46,6 +47,7 @@ extern int errorstate;
 extern char *shm;
 extern int shmid;
 bool useYield = 0;
+extern synchro * mutexes;
 
 #define SHMHDR ((shm_core_hdr *)shm)
 #define SHMCMD ((shm_cmd *)shm)->pingpong
@@ -175,7 +177,7 @@ DFPP_module InitCore(void)
     core.modulestate = 0; // this one is dumb and has no real state
     
     core.reserve(NUM_CORE_CMDS);
-    core.set_command(CORE_RUNNING, CANCELLATION, "Running");
+    core.set_command(CORE_RUNNING, CANCELLATION, "Running"); // THERE SHALL BE ONLY *ONE* SUCH COMMAND
     
     core.set_command(CORE_GET_VERSION, FUNCTION,"Get core version",GetCoreVersion, CORE_RET_VERSION);
     core.set_command(CORE_RET_VERSION, CLIENT_WAIT,"Core version return");
@@ -203,7 +205,7 @@ DFPP_module InitCore(void)
     core.set_command(CORE_WRITE_WORD, FUNCTION, "Write WORD", WriteWord, CORE_SUSPENDED);
     core.set_command(CORE_WRITE_BYTE, FUNCTION, "Write BYTE", WriteByte, CORE_SUSPENDED);
     
-    core.set_command(CORE_SUSPEND, CLIENT_WAIT, "Suspend", 0 , CORE_SUSPENDED);
+    core.set_command(CORE_SUSPEND, FUNCTION, "Suspend", 0 , CORE_SUSPENDED);
     core.set_command(CORE_SUSPENDED, CLIENT_WAIT, "Suspended");
     
     core.set_command(CORE_READ_STL_STRING, FUNCTION, "Read STL string", ReadSTLString, CORE_RET_STRING);
@@ -243,7 +245,8 @@ void SHM_Act (void)
         return;
     }
     uint32_t numwaits = 0;
-    check_again: // goto target!!!
+    
+    /*
     if(numwaits == 10000)
     {
         // this tests if there's a process on the other side
@@ -258,27 +261,46 @@ void SHM_Act (void)
             fprintf(stderr,"dfhack: Broke out of loop, other process disappeared.\n");
         }
     }
-    DFPP_module & mod = module_registry[((shm_cmd *)shm)->parts.module];
-    DFPP_command & cmd = mod.commands[((shm_cmd *)shm)->parts.command];
-    //fprintf(stderr, "Client invoked %d:%d = ",((shm_cmd *)shm)->parts.module,((shm_cmd *)shm)->parts.command);
-    //fprintf(stderr, "%s\n",cmd.name.c_str());
+    */
+    // lock the mutex
+    //pthread_mutex_lock(&mutexes->mutex);
     
-    if(cmd._function)
+    if(SHMCMD != CORE_RUNNING)
     {
-        cmd._function(mod.modulestate);
-    }
-    if(cmd.nextState != -1)
-    {
-        SHMCMD = cmd.nextState;
-    }
-    if(cmd.type != CANCELLATION)
-    {
-        if(useYield)
+        check_again: // goto target!!!
         {
-            SCHED_YIELD
+            // get module command
+            DFPP_module & mod = module_registry[((shm_cmd *)shm)->parts.module];
+            DFPP_command & cmd = mod.commands[((shm_cmd *)shm)->parts.command];
+
+            // do changes
+            uint32_t oldcmd = SHMCMD;
+            if(cmd._function)
+            {
+                cmd._function(mod.modulestate);
+            }
+            if(cmd.nextState != -1)
+            {
+                SHMCMD = cmd.nextState;
+            }
+            if(cmd.type == CANCELLATION) // cancellation - client called a resume command and doesn't expect any response
+            {
+                pthread_mutex_unlock(&mutexes->mutex);
+                return; // ALERT: loop exit point!
+            }
+            else if(cmd.type == CLIENT_WAIT)
+            {
+                // we tell client about the changes
+                pthread_cond_signal(&mutexes->cond_set_by_sv); // wake client
+                // wait for client
+                pthread_cond_wait(&mutexes->cond_set_by_cl,&mutexes->mutex);
+                goto check_again;
+            }
+            else goto check_again; // function, we changed state
+            // unreachable
         }
-        numwaits ++; // watchdog timeout
-        goto check_again;
+        // unreachable
     }
+    // exit point in case of no suspended state
 }
 
