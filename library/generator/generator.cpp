@@ -5,8 +5,50 @@
 #include <set>
 #include <map>
 #include <vector>
+#include <sstream>
 #include <dfhack/DFIntegers.h>
 using namespace std;
+
+class indentr
+{
+public:
+    friend std::basic_ostream<char>& operator <<(std::basic_ostream<char>&, const indentr &);
+    indentr(int ns = 0, int size = 4)
+    {
+        numspaces = ns;
+        step = size;
+    }
+    void indent ()
+    {
+        numspaces += step;
+        if (numspaces < 0) numspaces = 0;
+    }
+    void unindent ()
+    {
+        numspaces -= step;
+        if (numspaces < 0) numspaces = 0;
+    }
+    int get ()
+    {
+        return numspaces;
+    }
+    void set (int ns)
+    {
+        numspaces = ns;
+        if (numspaces < 0) numspaces = 0;
+    }
+    private:
+    int step;
+    int numspaces;
+};
+std::basic_ostream<char>& operator<< (std::basic_ostream<char>& os, const indentr & idtr)
+{
+    for(int i = 0; i < idtr.numspaces ;i++)
+    {
+        os << ' ';
+    }
+    return os;
+}
 
 class OffsetGroup
 {
@@ -22,7 +64,7 @@ public:
     OffsetGroup(const std::string & _name, OffsetGroup * parent = 0);
     ~OffsetGroup();
 
-    virtual string toDeclaration();
+    virtual string toDeclaration(uint32_t indent);
     virtual string toReader();
     void createOffset (const std::string & key);
     void createAddress (const std::string & key);
@@ -40,7 +82,7 @@ class Base : public OffsetGroup
 public:
     Base(const string & _name);
     ~Base();
-    virtual string toDeclaration();
+    virtual string toDeclaration(uint32_t indent);
     virtual string toReader();
 };
 
@@ -82,9 +124,36 @@ Base::Base(const std::string& _name): OffsetGroup(_name)
 {
 }
 
-string Base::toDeclaration()
+string Base::toDeclaration(uint32_t indent)
 {
-    return OffsetGroup::toDeclaration();
+    ostringstream os;
+    indentr i(indent);
+    os << i << "struct " << name << "_offsets" << endl << i << "{" << endl;
+    i.indent();
+    set< string >::iterator iter;
+    for( iter = addresses.begin(); iter != addresses.end(); iter++)
+    {
+        os << i << "nullableUint32 " << *iter << ";" << endl;
+    }
+    for(iter = offsets.begin(); iter != offsets.end(); iter++)
+    {
+        os << i << "nullableInt32 " << *iter << ";" << endl;
+    }
+    for(iter = hexvals.begin(); iter != hexvals.end(); iter++)
+    {
+        os << i << "nullableUint32 " << *iter << ";" << endl;
+    }
+    for(iter = strings.begin(); iter != strings.end(); iter++)
+    {
+        os << i << "nullableString " << *iter << ";" << endl;
+    }
+    for(std::set< OffsetGroup* >::iterator iter4 = groups.begin(); iter4 != groups.end(); iter4++)
+    {
+        os << (*iter4)->toDeclaration(i.get());
+    }
+    i.unindent();
+    os << i << "};" << endl;
+    return os.str();
 }
 
 string Base::toReader()
@@ -97,9 +166,36 @@ Base::~Base()
     this->OffsetGroup::~OffsetGroup();
 }
 
-string OffsetGroup::toDeclaration()
+string OffsetGroup::toDeclaration(uint32_t indent)
 {
-    return "blah\n";
+    ostringstream os;
+    indentr i(indent);
+    os << i << "struct " << endl << i << "{" << endl;
+    i.indent();
+    set< string >::iterator iter;
+    for( iter = addresses.begin(); iter != addresses.end(); iter++)
+    {
+        os << i << "nullableUint32 " << *iter << ";" << endl;
+    }
+    for(iter = offsets.begin(); iter != offsets.end(); iter++)
+    {
+        os << i << "nullableInt32 " << *iter << ";" << endl;
+    }
+    for(iter = hexvals.begin(); iter != hexvals.end(); iter++)
+    {
+        os << i << "nullableUint32 " << *iter << ";" << endl;
+    }
+    for(iter = strings.begin(); iter != strings.end(); iter++)
+    {
+        os << i << "nullableString " << *iter << ";" << endl;
+    }
+    for(std::set< OffsetGroup* >::iterator iter4 = groups.begin(); iter4 != groups.end(); iter4++)
+    {
+        os << (*iter4)->toDeclaration(i.get());
+    }
+    i.unindent();
+    os << i << "} " << name << ";" << endl;
+    return os.str();
 }
 
 string OffsetGroup::toReader()
@@ -498,11 +594,16 @@ int main ( int argc, char** argv )
     if(argc < 2)
     {
         cout << "A file is required!" << ::std::endl;
-        return 1;
+        return EXIT_FAILURE;
     }
     vector <Base *> bases;
     if(loadFile(argv[1],bases))
     {
-        cout << "loaded " << bases.size() << " bases" << endl;
+        for(int i = 0; i < bases.size(); i++)
+        {
+            cout << bases[i]->toDeclaration(0);
+        }
+        return EXIT_SUCCESS;
     }
+    return EXIT_FAILURE;
 }
