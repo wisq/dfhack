@@ -1,8 +1,11 @@
 #include <iostream>
 #include <algorithm>
-#include <depends/tinyxml/tinyxml.h>
-#include <depends/tinyxml/tinystr.h>
-
+#include <tinyxml.h>
+#include <tinystr.h>
+#include <set>
+#include <map>
+#include <vector>
+#include <dfhack/DFIntegers.h>
 using namespace std;
 
 class OffsetGroup
@@ -16,13 +19,11 @@ protected:
     std::string name;
     OffsetGroup * parent;
 public:
-    OffsetGroup();
     OffsetGroup(const std::string & _name, OffsetGroup * parent = 0);
     ~OffsetGroup();
 
-//    void copy(const OffsetGroup * old); // recursive
-//    void RebaseAddresses( int32_t offset ); // recursive
-
+    virtual string toDeclaration();
+    virtual string toReader();
     void createOffset (const std::string & key);
     void createAddress (const std::string & key);
     void createHexValue (const std::string & key);
@@ -33,6 +34,117 @@ public:
     std::string getFullName();
     OffsetGroup * getParent();
 };
+
+class Base : public OffsetGroup
+{
+public:
+    Base(const string & _name);
+    ~Base();
+    virtual string toDeclaration();
+    virtual string toReader();
+};
+
+void OffsetGroup::createOffset(const string & key)
+{
+    offsets.insert(key);
+}
+
+void OffsetGroup::createAddress(const string & key)
+{
+    addresses.insert(key);
+}
+
+void OffsetGroup::createHexValue(const string & key)
+{
+    hexvals.insert(key);
+}
+
+void OffsetGroup::createString(const string & key)
+{
+    strings.insert(key);
+}
+
+OffsetGroup * OffsetGroup::createGroup(const std::string &name)
+{
+    std::set< OffsetGroup* >::iterator iter = groups.begin();
+    while (iter != groups.end())
+    {
+        if((*iter)->getName() == name)
+            return (*iter);
+        iter ++;
+    }
+    OffsetGroup * ret = new OffsetGroup(name, this);
+    groups.insert(ret);
+    return ret;
+}
+
+Base::Base(const std::string& _name): OffsetGroup(_name)
+{
+}
+
+string Base::toDeclaration()
+{
+    return OffsetGroup::toDeclaration();
+}
+
+string Base::toReader()
+{
+    return OffsetGroup::toReader();
+}
+
+Base::~Base()
+{
+    this->OffsetGroup::~OffsetGroup();
+}
+
+string OffsetGroup::toDeclaration()
+{
+    return "blah\n";
+}
+
+string OffsetGroup::toReader()
+{
+    return "bleh\n";
+}
+
+OffsetGroup::OffsetGroup(const std::string & name, OffsetGroup * parent)
+{
+    this->name = name;
+    this->parent = parent;
+}
+
+OffsetGroup::~OffsetGroup()
+{
+    for( std::set< OffsetGroup* >::iterator it = groups.begin();it != groups.end();it++)
+    {
+        delete (*it);
+    }
+    groups.clear();
+}
+
+std::string OffsetGroup::getName()
+{
+    return name;
+}
+
+OffsetGroup * OffsetGroup::getParent()
+{
+    return parent;
+}
+
+std::string OffsetGroup::getFullName()
+{
+    string temp, accum;
+    OffsetGroup * curr = this;
+    while(curr)
+    {
+        temp = curr->getName() + string("/") + accum;
+        accum = temp;
+        curr = curr->getParent();
+    }
+    return accum;
+}
+
 
 void ParseOffsets(TiXmlElement * parent, OffsetGroup* target)
 {
@@ -49,8 +161,7 @@ void ParseOffsets(TiXmlElement * parent, OffsetGroup* target)
         if(!pEntry)
             return;
 
-        OffsetGroup * currentGroup = target;
-        breadcrumbs.push_back(groupPair(pEntry,currentGroup));
+        breadcrumbs.push_back(groupPair(pEntry,target));
     }
 
     // work variables
@@ -102,11 +213,13 @@ void ParseOffsets(TiXmlElement * parent, OffsetGroup* target)
         const char *cstr_name = currentElem->Attribute("name");
         if(!cstr_name)
         {
-            // ERROR, missing attribute
+            groupPair & gp = breadcrumbs.back();
+            gp.first = gp.first->NextSiblingElement();
+            cerr << "Entry has no name! line: " << currentElem->Row() <<endl;
+            continue;
         }
 
         // evaluate elements
-        const char *cstr_value = currentElem->Attribute("value");
         if(type == "group")
         {
             // create group
@@ -173,7 +286,7 @@ void ParseBase (TiXmlElement* entry, OffsetGroup* mem)
         else if(type == "Offsets")
         {
             // we don't care about the descriptions here, do nothing
-            ParseOffsets(pElement, mem, true);
+            ParseOffsets(pElement, mem);
             continue;
         }
         else if (type == "Professions")
@@ -319,7 +432,7 @@ void ParseBase (TiXmlElement* entry, OffsetGroup* mem)
 } // method
 
 // load the XML file with offsets
-bool loadFile(string path_to_xml, vector <OffsetGroup *> & bases)
+bool loadFile(string path_to_xml, vector <Base *> & bases)
 {
     TiXmlDocument doc( path_to_xml.c_str() );
     //bool loadOkay = doc.LoadFile();
@@ -331,7 +444,6 @@ bool loadFile(string path_to_xml, vector <OffsetGroup *> & bases)
     TiXmlHandle hDoc(&doc);
     TiXmlElement* pElem;
     TiXmlHandle hRoot(0);
-    VersionInfo *mem;
 
     // block: name
     {
@@ -370,8 +482,8 @@ bool loadFile(string path_to_xml, vector <OffsetGroup *> & bases)
             if(name)
             {
                 string str_name = name;
-                OffsetGroup *base = new OffsetGroup();
-                ParseBase( pMemInfo , mem );
+                Base *base = new Base(name);
+                ParseBase( pMemInfo , base );
                 bases.push_back(base);
             }
         }
@@ -383,5 +495,14 @@ bool loadFile(string path_to_xml, vector <OffsetGroup *> & bases)
 
 int main ( int argc, char** argv )
 {
-    cout << "lolz" << endl;
+    if(argc < 2)
+    {
+        cout << "A file is required!" << ::std::endl;
+        return 1;
+    }
+    vector <Base *> bases;
+    if(loadFile(argv[1],bases))
+    {
+        cout << "loaded " << bases.size() << " bases" << endl;
+    }
 }

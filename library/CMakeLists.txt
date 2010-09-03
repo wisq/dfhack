@@ -230,3 +230,13 @@ IF(UNIX)
   install(FILES ${CMAKE_SOURCE_DIR}/output/Memory.xml DESTINATION share/dfhack)
   install(DIRECTORY ${CMAKE_SOURCE_DIR}/library/include/ DESTINATION include FILES_MATCHING PATTERN "*.h")
 ENDIF(UNIX)
+
+SET(GENERATOR_SRCS
+depends/tinyxml/tinystr.cpp
+depends/tinyxml/tinyxml.cpp
+depends/tinyxml/tinyxmlerror.cpp
+depends/tinyxml/tinyxmlparser.cpp
+generator/generator.cpp
+)
+
+ADD_EXECUTABLE(dfxmlgen ${GENERATOR_SRCS})
