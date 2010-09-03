@@ -816,11 +816,11 @@
             <Address name="WORLD" description="A huge object that many things in DF are part of. Contains the whole game and can be used as a base
             for many of the addresses." />
             <Group name="vector" description="An STL vector.">
-                <HexValue name="sizeof" description="The total size in bytes." />
+                <HexValue name="size_of" description="The total size in bytes." />
                 <Offset name="start" description="The offset where the actual start/end/alloc_end triplet is." />
             </Group>
             <Group name="string" description="An STL string.">
-                <HexValue name="sizeof" description="The total size in bytes." />
+                <HexValue name="size_of" description="The total size in bytes." />
             </Group>
             <Group name="name" description="A structure used for names all over the place.">
                 <Offset name="first" description="Lowercase stl string with the first name. For ex. 'urist'" />
@@ -990,7 +990,7 @@
             </Group>
             <Group name="Constructions">
                 <Address name="vector"/>
-                <Offset name="sizeof"/>
+                <Offset name="size_of"/>
             </Group>
             <Group name="Translations">
                 <Address name="language_vector"/>
@@ -1012,7 +1012,7 @@
                 <Address name="start"/>
                 <Offset name="mode"/>
                 <Offset name="coords"/>
-                <HexValue name="sizeof"/>
+                <HexValue name="size_of"/>
             </Group>
             <Group name="Items">
                 <!-- most of those seem completely unused! -->
@@ -1071,7 +1071,7 @@
         <Offsets>
             <Address name="WORLD" value="0x0165B188" />
             <Group name="vector">
-                <HexValue name="sizeof" value="0x18" />
+                <HexValue name="size_of" value="0x18" />
                 <Offset name="start" value="0xC" />
                 <!--
                 Vector layout in MSVC 9:
@@ -1084,7 +1084,7 @@
                 -->
             </Group>
             <Group name="string">
-                <HexValue name="sizeof" value="0x1C" />
+                <HexValue name="size_of" value="0x1C" />
             </Group>
             <Group name="name">
                 <Offset name="first" value="0x0" />
@@ -1255,7 +1255,7 @@
             </Group>
             <Group name="Constructions">
                 <Address name="vector" value="0x165b290" /> <!-- WORLD + 0x108 -->
-                <Offset name="sizeof" value="0x14" />
+                <Offset name="size_of" value="0x14" />
             </Group>
             <Group name="Translations">
                 <Address name="language_vector" value="0x016AFFD8" /> <!-- WORLD + 0x54E50 -->
@@ -1277,7 +1277,7 @@
                 <Address name="start" value="0x01476ecc" />
                 <Offset name="mode" value="0x1C" />
                 <Offset name="coords" value="0x20" />
-                <HexValue name="sizeof" value="0x2C" />
+                <HexValue name="size_of" value="0x2C" />
             </Group>
             <!-- addresses from belal: vectors might need 8 subtracted from them
             buildings 0x0166f9a8
@@ -1629,7 +1629,7 @@
         <Offsets>
             <Address name="WORLD" value="0x92C60E0" valid="false" />
             <Group name="vector" valid="true">
-                <HexValue name="sizeof" value="0xC" />
+                <HexValue name="size_of" value="0xC" />
                 <Offset name="start" value="0x0" />
                 <!--
                 Vector layout in lidstdc++:
@@ -1639,7 +1639,7 @@
                 -->
             </Group>
             <Group name="string" valid="true">
-                <HexValue name="sizeof" value="0x4" />
+                <HexValue name="size_of" value="0x4" />
             </Group>
             <Group name="name" valid="true">
                 <Offset name="first" value="0x0" />
@@ -1876,7 +1876,7 @@
         <Offsets>
             <Group name="Constructions">
                 <Address name="vector" value="0x92f30a4"/>
-                <Offset name="sizeof" value="0x14"/>
+                <Offset name="size_of" value="0x14"/>
             </Group>
             <Group name="Position">
                 <Address name="screen_tiles_pointer" value="0x09487970" />

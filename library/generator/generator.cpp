@@ -133,19 +133,19 @@ string Base::toDeclaration(uint32_t indent)
     set< string >::iterator iter;
     for( iter = addresses.begin(); iter != addresses.end(); iter++)
     {
-        os << i << "nullableUint32 " << *iter << ";" << endl;
+        os << i << "Address " << *iter << ";" << endl;
     }
     for(iter = offsets.begin(); iter != offsets.end(); iter++)
     {
-        os << i << "nullableInt32 " << *iter << ";" << endl;
+        os << i << "Offset " << *iter << ";" << endl;
     }
     for(iter = hexvals.begin(); iter != hexvals.end(); iter++)
     {
-        os << i << "nullableUint32 " << *iter << ";" << endl;
+        os << i << "HexValue " << *iter << ";" << endl;
     }
     for(iter = strings.begin(); iter != strings.end(); iter++)
     {
-        os << i << "nullableString " << *iter << ";" << endl;
+        os << i << "DFString " << *iter << ";" << endl;
     }
     for(std::set< OffsetGroup* >::iterator iter4 = groups.begin(); iter4 != groups.end(); iter4++)
     {
@@ -170,24 +170,24 @@ string OffsetGroup::toDeclaration(uint32_t indent)
 {
     ostringstream os;
     indentr i(indent);
-    os << i << "struct " << endl << i << "{" << endl;
+    os << i << "struct grp_" << name << endl << i << "{" << endl;
     i.indent();
     set< string >::iterator iter;
     for( iter = addresses.begin(); iter != addresses.end(); iter++)
     {
-        os << i << "nullableUint32 " << *iter << ";" << endl;
+        os << i << "Address " << *iter << ";" << endl;
     }
     for(iter = offsets.begin(); iter != offsets.end(); iter++)
     {
-        os << i << "nullableInt32 " << *iter << ";" << endl;
+        os << i << "Offset " << *iter << ";" << endl;
     }
     for(iter = hexvals.begin(); iter != hexvals.end(); iter++)
     {
-        os << i << "nullableUint32 " << *iter << ";" << endl;
+        os << i << "HexValue " << *iter << ";" << endl;
     }
     for(iter = strings.begin(); iter != strings.end(); iter++)
     {
-        os << i << "nullableString " << *iter << ";" << endl;
+        os << i << "DFString " << *iter << ";" << endl;
     }
     for(std::set< OffsetGroup* >::iterator iter4 = groups.begin(); iter4 != groups.end(); iter4++)
     {

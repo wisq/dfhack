@@ -740,7 +740,7 @@ bool Maps::ReadLocalFeatures( std::map <planecoord, std::vector<t_feature *> > &
     uint32_t base = p->readDWord(d->OG_local_features->getAddress("start_ptr"));
     if(!base)
         return false;
-    const uint32_t sizeof_vec = d->OG_vector->getHexValue("sizeof");
+    const uint32_t sizeof_vec = d->OG_vector->getHexValue("size_of");
     const uint32_t sizeof_elem = 16;
     const uint32_t offset_elem = 4;
     const uint32_t main_mat_offset = d->OG_local_features->getOffset("material"); // 0x30

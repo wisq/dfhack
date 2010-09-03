@@ -57,7 +57,7 @@ Translation::Translation(DFContextShared * d_)
     d->genericAddress = OG_Translation->getAddress ("language_vector");
     d->transAddress = OG_Translation->getAddress ("translation_vector");
     d->word_table_offset = OG_Translation->getOffset ("word_table");
-    d->sizeof_string = OG_String->getHexValue ("sizeof");
+    d->sizeof_string = OG_String->getHexValue ("size_of");
     d->Inited = true;
 }
 

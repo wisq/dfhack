@@ -326,7 +326,7 @@ bool Materials::ReadCreatureTypesEx (void)
     Process *p = d->owner;
     VersionInfo *mem = p->getDescriptor();
     OffsetGroup * OG_string = mem->getGroup("string");
-    uint32_t sizeof_string = OG_string->getHexValue ("sizeof");
+    uint32_t sizeof_string = OG_string->getHexValue ("size_of");
 
     OffsetGroup * OG_Mats = mem->getGroup("Materials");
     DfVector <uint32_t> p_races (p, OG_Mats->getAddress ("creature_type_vector"));
