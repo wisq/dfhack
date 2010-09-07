@@ -26,6 +26,7 @@ distribution.
 #include "dfhack/VersionInfo.h"
 #include "dfhack/DFError.h"
 #include "dfhack/DFProcess.h"
+#include "dfhack/BaseTypes.h"
 
 //Inital amount of space in levels vector (since we usually know the number, efficient!)
 #define NUM_RESERVE_LVLS 20
@@ -127,19 +128,19 @@ namespace DFHack
  */
 namespace DFHack
 {
-    typedef pair <bool, uint32_t> nullableUint32;
-    typedef map <string, nullableUint32 >::iterator uint32_Iter;
-    typedef pair <bool, int32_t> nullableInt32;
-    typedef map <string, nullableInt32 >::iterator int32_Iter;
+    //typedef pair <bool, uint32_t> nullableUint32;
+    typedef map <string, Address >::iterator Address_Iter;
+    typedef map <string, Offset >::iterator Offset_Iter;
+    typedef map <string, HexValue >::iterator HexValue_Iter;
     typedef pair <bool, string> nullableString;
     typedef map <string, nullableString >::iterator strings_Iter;
     typedef map <string, OffsetGroup *>::iterator groups_Iter;
     class OffsetGroupPrivate
     {
         public:
-        map <string, nullableUint32 > addresses;
-        map <string, nullableUint32 > hexvals;
-        map <string, nullableInt32 > offsets;
+        map <string, Address > addresses;
+        map <string, HexValue > hexvals;
+        map <string, Offset > offsets;
         map <string, nullableString > strings;
         map <string, OffsetGroup *> groups;
         std::string name;
@@ -149,17 +150,17 @@ namespace DFHack
 
 void OffsetGroup::createOffset(const string & key)
 {
-    OGd->offsets[key] = nullableInt32(false, 0);
+    OGd->offsets[key] = Offset();
 }
 
 void OffsetGroup::createAddress(const string & key)
 {
-    OGd->addresses[key] = nullableUint32(false, 0);
+    OGd->addresses[key] = Address();
 }
 
 void OffsetGroup::createHexValue(const string & key)
 {
-    OGd->hexvals[key] = nullableUint32(false, 0);
+    OGd->hexvals[key] = HexValue();
 }
 
 void OffsetGroup::createString(const string & key)
@@ -169,12 +170,10 @@ void OffsetGroup::createString(const string & key)
 
 void OffsetGroup::setOffset (const string & key, const string & value)
 {
-    int32_Iter it = OGd->offsets.find(key);
+    Offset_Iter it = OGd->offsets.find(key);
     if(it != OGd->offsets.end())
     {
-        int32_t offset = strtol(value.c_str(), NULL, 16);
-        (*it).second.second = offset;
-        (*it).second.first = true;
+        (*it).second = strtol(value.c_str(), NULL, 16);
     }
     else throw Error::MissingMemoryDefinition("offset", getFullName() + key);
 }
@@ -182,12 +181,10 @@ void OffsetGroup::setOffset (const string & key, const string & value)
 
 void OffsetGroup::setAddress (const string & key, const string & value)
 {
-    uint32_Iter it = OGd->addresses.find(key);
+    Address_Iter it = OGd->addresses.find(key);
     if(it != OGd->addresses.end())
     {
-        int32_t address = strtol(value.c_str(), NULL, 16);
-        (*it).second.second = address;
-        (*it).second.first = true;
+        (*it).second =  strtol(value.c_str(), NULL, 16);
     }
     else throw Error::MissingMemoryDefinition("address", getFullName() + key);
 }
@@ -195,11 +192,10 @@ void OffsetGroup::setAddress (const string & key, const string & value)
 
 void OffsetGroup::setHexValue (const string & key, const string & value)
 {
-    uint32_Iter it = OGd->hexvals.find(key);
+    HexValue_Iter it = OGd->hexvals.find(key);
     if(it != OGd->hexvals.end())
     {
-        (*it).second.second = strtol(value.c_str(), NULL, 16);
-        (*it).second.first = true;
+        (*it).second = strtol(value.c_str(), NULL, 16);
     }
     else throw Error::MissingMemoryDefinition("hexvalue", getFullName() + key);
 }
@@ -220,12 +216,12 @@ void OffsetGroup::setString (const string & key, const string & value)
 // Get named address
 uint32_t OffsetGroup::getAddress (const string & key)
 {
-    uint32_Iter iter = OGd->addresses.find(key);
+    Address_Iter iter = OGd->addresses.find(key);
 
     if(iter != OGd->addresses.end())
     {
-        if((*iter).second.first)
-            return (*iter).second.second;
+        if((*iter).second.isValid())
+            return (*iter).second;
         throw Error::UnsetMemoryDefinition("address", getFullName() + key);
     }
     throw Error::MissingMemoryDefinition("address", getFullName() + key);
@@ -235,11 +231,11 @@ uint32_t OffsetGroup::getAddress (const string & key)
 // Get named offset
 int32_t OffsetGroup::getOffset (const string & key)
 {
-    int32_Iter iter = OGd->offsets.find(key);
+    Offset_Iter iter = OGd->offsets.find(key);
     if(iter != OGd->offsets.end())
     {
-        if((*iter).second.first)
-            return (*iter).second.second;
+        if((*iter).second.isValid())
+            return (*iter).second;
         throw Error::UnsetMemoryDefinition("offset", getFullName() + key);
     }
     throw Error::MissingMemoryDefinition("offset",  getFullName() + key);
@@ -249,11 +245,11 @@ int32_t OffsetGroup::getOffset (const string & key)
 // Get named numerical value
 uint32_t OffsetGroup::getHexValue (const string & key)
 {
-    uint32_Iter iter = OGd->hexvals.find(key);
+    HexValue_Iter iter = OGd->hexvals.find(key);
     if(iter != OGd->hexvals.end())
     {
-        if((*iter).second.first)
-            return (*iter).second.second;
+        if((*iter).second.isValid())
+            return (*iter).second;
         throw Error::UnsetMemoryDefinition("hexvalue", getFullName() + key);
     }
     throw Error::MissingMemoryDefinition("hexvalue", getFullName() + key);
@@ -292,10 +288,10 @@ OffsetGroup * OffsetGroup::createGroup(const std::string &name)
 
 void OffsetGroup::RebaseAddresses(int32_t offset)
 {
-    for(uint32_Iter iter = OGd->addresses.begin(); iter != OGd->addresses.end(); iter++)
+    for(Address_Iter iter = OGd->addresses.begin(); iter != OGd->addresses.end(); iter++)
     {
-        if(iter->second.first)
-            OGd->addresses[iter->first].second = iter->second.second + offset;
+        if(iter->second.isValid())
+            OGd->addresses[iter->first] += offset;
     }
     for(groups_Iter iter = OGd->groups.begin(); iter != OGd->groups.end(); iter++)
     {
@@ -352,37 +348,38 @@ std::string OffsetGroup::getFullName()
 
 std::string OffsetGroup::PrintOffsets(int indentation)
 {
-    uint32_Iter iter;
+    Address_Iter iter;
     ostringstream ss;
     indentr i(indentation);
     for(iter = OGd->addresses.begin(); iter != OGd->addresses.end(); iter++)
     {
         ss << i << "<Address name=\"" << (*iter).first << "\"";
-        if((*iter).second.first)
-            ss << " value=\"" << hex << "0x" << (*iter).second.second << "\"";
+        if((*iter).second.isValid())
+            ss << " value=\"" << hex << "0x" << (*iter).second << "\"";
         ss << " />";
-        if(!(*iter).second.first)
+        if(!(*iter).second.isValid())
             ss << " MISSING!";
         ss << endl;
     }
-    int32_Iter iter2;
+    Offset_Iter iter2;
     for(iter2 = OGd->offsets.begin(); iter2 != OGd->offsets.end(); iter2++)
     {
         ss << i << "<Offset name=\"" << (*iter2).first << "\"";
-        if((*iter2).second.first)
-            ss << " value=\"" << hex << "0x" << (*iter2).second.second << "\"";
+        if((*iter2).second.isValid())
+            ss << " value=\"" << hex << "0x" << (*iter2).second << "\"";
         ss << " />";
-        if(!(*iter2).second.first)
+        if(!(*iter2).second.isValid())
             ss << " MISSING!";
         ss << endl;
     }
-    for(iter = OGd->hexvals.begin(); iter != OGd->hexvals.end(); iter++)
+    HexValue_Iter iter66;
+    for(iter66 = OGd->hexvals.begin(); iter66 != OGd->hexvals.end(); iter66++)
     {
-        ss << i << "<HexValue name=\"" << (*iter).first << "\"";
-        if((*iter).second.first)
-            ss << " value=\"" << hex << "0x" << (*iter).second.second << "\"";
+        ss << i << "<HexValue name=\"" << (*iter66).first << "\"";
+        if((*iter66).second.isValid())
+            ss << " value=\"" << hex << "0x" << (*iter66).second << "\"";
         ss << " />";
-        if(!(*iter).second.first)
+        if(!(*iter66).second.isValid())
             ss << " MISSING!";
         ss << endl;
     }
