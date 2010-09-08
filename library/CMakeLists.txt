@@ -240,3 +240,13 @@ generator/generator.cpp
 )
 
 ADD_EXECUTABLE(dfxmlgen ${GENERATOR_SRCS})
+
+SET(READER_SRCS
+depends/tinyxml/tinystr.cpp
+depends/tinyxml/tinyxml.cpp
+depends/tinyxml/tinyxmlerror.cpp
+depends/tinyxml/tinyxmlparser.cpp
+generator/reader.cpp
+)
+
+ADD_EXECUTABLE(dfrdr ${READER_SRCS})
