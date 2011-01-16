@@ -146,13 +146,10 @@ bool SHMProcess::SetAndWait (uint32_t state)
     return d->SetAndWait(state);
 }
 
+// FIXME: implement
 uint32_t OS_getAffinity()
 {
-    cpu_set_t mask;
-    sched_getaffinity(0,sizeof(cpu_set_t),&mask);
-    // FIXME: truncation
-    uint32_t affinity = *(uint32_t *) &mask;
-    return affinity;
+    return NULL;
 }
 
 // test if we have client and server locks and the server is present
@@ -380,31 +377,9 @@ bool SHMProcess::getThreadIDs(vector<uint32_t> & threads )
     return false;
 }
 
-//FIXME: cross-reference with ELF segment entries?
+//FIXME: implement
 void SHMProcess::getMemRanges( vector<t_memrange> & ranges )
 {
-    char buffer[1024];
-    char permissions[5]; // r/-, w/-, x/-, p/s, 0
-
-    sprintf(buffer, "/proc/%lu/maps", d->process_ID);
-    FILE *mapFile = ::fopen(buffer, "r");
-    uint64_t offset, device1, device2, node;
-
-    while (fgets(buffer, 1024, mapFile))
-    {
-        t_memrange temp;
-        temp.name[0] = 0;
-        sscanf(buffer, "%llx-%llx %s %llx %2llu:%2llu %llu %s",
-               &temp.start,
-               &temp.end,
-               (char*)&permissions,
-               &offset, &device1, &device2, &node,
-               (char*)&temp.name);
-        temp.read = permissions[0] == 'r';
-        temp.write = permissions[1] == 'w';
-        temp.execute = permissions[2] == 'x';
-        ranges.push_back(temp);
-    }
 }
 
 bool SHMProcess::suspend()

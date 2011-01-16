@@ -179,31 +179,9 @@ bool NormalProcess::getThreadIDs(vector<uint32_t> & threads )
     return false;
 }
 
-//FIXME: cross-reference with ELF segment entries?
+//FIXME: implement
 void NormalProcess::getMemRanges( vector<t_memrange> & ranges )
 {
-    char buffer[1024];
-    char permissions[5]; // r/-, w/-, x/-, p/s, 0
-
-    sprintf(buffer, "/proc/%lu/maps", d->my_pid);
-    FILE *mapFile = ::fopen(buffer, "r");
-    uint64_t offset, device1, device2, node;
-
-    while (fgets(buffer, 1024, mapFile))
-    {
-        t_memrange temp;
-        temp.name[0] = 0;
-        sscanf(buffer, "%llx-%llx %s %llx %2llu:%2llu %llu %s",
-               &temp.start,
-               &temp.end,
-               (char*)&permissions,
-               &offset, &device1, &device2, &node,
-               (char*)&temp.name);
-        temp.read = permissions[0] == 'r';
-        temp.write = permissions[1] == 'w';
-        temp.execute = permissions[2] == 'x';
-        ranges.push_back(temp);
-    }
 }
 
 bool NormalProcess::asyncSuspend()
@@ -300,22 +278,6 @@ bool NormalProcess::attach()
         }
     }
     d->suspended = true;
-
-    int proc_pid_mem = open(d->memFile.c_str(),O_RDONLY);
-    if(proc_pid_mem == -1)
-    {
-        ptrace(PT_DETACH, d->my_handle, NULL, NULL);
-        cerr << "couldn't open /proc/" << d->my_handle << "/mem" << endl;
-        perror("open(memFile.c_str(),O_RDONLY)");
-        return false;
-    }
-    else
-    {
-        d->attached = true;
-
-        d->memFileHandle = proc_pid_mem;
-        return true; // we are attached
-    }
 }
 
 bool NormalProcess::detach()
