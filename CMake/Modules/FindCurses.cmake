@@ -92,10 +92,7 @@ ELSE(NOT CURSES_USE_NCURSES)
   FIND_FILE(CURSES_HAVE_CURSESW_H          cursesw.h 
     HINTS "${_cursesParentDir}/include")
 
-  FIND_PATH(CURSES_NCURSES_INCLUDE_PATH ncurses.h ncurses/ncurses.h 
-    ncurses/curses.h ncursesw.h ncursesw/ncurses.h ncursesw/curses.h cursesw.h)
-  FIND_PATH(CURSES_NCURSES_INCLUDE_PATH curses.h
-    HINTS "${_cursesParentDir}/include")
+  SET(CURSES_NCURSES_INCLUDE_PATH "${_cursesParentDir}/include")
 
   # for compatibility with older FindCurses.cmake this has to be in the cache
   # FORCE must not be used since this would break builds which preload
