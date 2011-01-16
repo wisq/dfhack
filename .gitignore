@@ -31,3 +31,7 @@ dfhack/python/build
 dfhack/python/dist
 
 /cmakeall.bat
+
+# In-tree build targets
+output/Memory.xml
+tools/supported/fake-curses.h
