@@ -26,6 +26,7 @@ distribution.
 #include "dfhack/VersionInfo.h"
 #include "dfhack/DFError.h"
 #include <errno.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/ptrace.h>
 using namespace DFHack;
@@ -398,10 +399,10 @@ void NormalProcess::readQuad (const uint32_t offset, uint64_t &val)
 void NormalProcess::writeQuad (uint32_t offset, const uint64_t data)
 {
     #ifdef HAVE_64_BIT
-        ptrace(PTRACE_POKEDATA,d->my_handle, offset, data);
+        ptrace(PT_WRITE_D, d->my_handle, (caddr_t)offset, data);
     #else
-        ptrace(PTRACE_POKEDATA,d->my_handle, offset, (uint32_t) data);
-        ptrace(PTRACE_POKEDATA,d->my_handle, offset+4, (uint32_t) (data >> 32));
+        ptrace(PT_WRITE_D, d->my_handle, (caddr_t)offset, (uint32_t) data);
+        ptrace(PT_WRITE_D, d->my_handle, (caddr_t)offset+4, (uint32_t) (data >> 32));
     #endif
 }
 
@@ -411,9 +412,9 @@ void NormalProcess::writeDWord (uint32_t offset, uint32_t data)
         uint64_t orig = readQuad(offset);
         orig &= 0xFFFFFFFF00000000;
         orig |= data;
-        ptrace(PTRACE_POKEDATA,d->my_handle, offset, orig);
+        ptrace(PT_WRITE_D, d->my_handle, (caddr_t)offset, orig);
     #else
-        ptrace(PTRACE_POKEDATA,d->my_handle, offset, data);
+        ptrace(PT_WRITE_D, d->my_handle, (caddr_t)offset, data);
     #endif
 }
 
@@ -424,12 +425,12 @@ void NormalProcess::writeWord (uint32_t offset, uint16_t data)
         uint64_t orig = readQuad(offset);
         orig &= 0xFFFFFFFFFFFF0000;
         orig |= data;
-        ptrace(PTRACE_POKEDATA,d->my_handle, offset, orig);
+        ptrace(PT_WRITE_D, d->my_handle, (caddr_t)offset, orig);
     #else
         uint32_t orig = readDWord(offset);
         orig &= 0xFFFF0000;
         orig |= data;
-        ptrace(PTRACE_POKEDATA,d->my_handle, offset, orig);
+        ptrace(PT_WRITE_D, d->my_handle, (caddr_t)offset, orig);
     #endif
 }
 
@@ -439,12 +440,12 @@ void NormalProcess::writeByte (uint32_t offset, uint8_t data)
         uint64_t orig = readQuad(offset);
         orig &= 0xFFFFFFFFFFFFFF00;
         orig |= data;
-        ptrace(PTRACE_POKEDATA,d->my_handle, offset, orig);
+        ptrace(PT_WRITE_D, d->my_handle, (caddr_t)offset, orig);
     #else
         uint32_t orig = readDWord(offset);
         orig &= 0xFFFFFF00;
         orig |= data;
-        ptrace(PTRACE_POKEDATA,d->my_handle, offset, orig);
+        ptrace(PT_WRITE_D, d->my_handle, (caddr_t)offset, orig);
     #endif
 }
 
