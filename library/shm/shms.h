@@ -10,7 +10,7 @@
 //#define SHM_CL(client_idx) client_idx*(SHM_SIZE)
 
 // FIXME: add YIELD for linux, add single-core and multi-core compile targets for optimal speed
-#ifdef LINUX_BUILD
+#if defined(LINUX_BUILD) || defined(APPLE_BUILD)
     // a full memory barrier! better be safe than sorry.
     #define full_barrier asm volatile("" ::: "memory"); __sync_synchronize();
     #define SCHED_YIELD sched_yield(); // a requirement for single-core

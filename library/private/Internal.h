@@ -72,7 +72,12 @@ using namespace std;
     #include <sys/stat.h>
     #include <fcntl.h>
     #include <sys/wait.h>
-#else
+#endif
+#ifdef APPLE_BUILD
+    #include <fcntl.h>
+    #include <sys/sysctl.h>
+#endif
+#ifdef WINDOWS_BUILD
     // WINDOWS
     #define _WIN32_WINNT 0x0501 // needed for INPUT struct
     #define WINVER 0x0501       // OpenThread(), PSAPI, Toolhelp32

@@ -22,7 +22,7 @@ must not be misrepresented as being the original software.
 distribution.
 */
 
-#ifdef LINUX_BUILD
+#if defined(LINUX_BUILD) || defined(APPLE_BUILD)
     #ifndef DFHACK_EXPORT
         #define DFHACK_EXPORT __attribute__ ((visibility("default")))
     #endif

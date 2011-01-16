@@ -192,13 +192,21 @@ CONFIGURE_FILE( ${CMAKE_SOURCE_DIR}/library/config.h.cmake ${CMAKE_SOURCE_DIR}/l
 ADD_DEFINITIONS(-DBUILD_DFHACK_LIB)
 
 IF(UNIX)
-  add_definitions(-DLINUX_BUILD)
+  IF(APPLE)
+    add_definitions(-DAPPLE_BUILD)
+  ELSE(APPLE)
+    add_definitions(-DLINUX_BUILD)
+  ENDIF(APPLE)
   add_definitions(-DUSE_CONFIG_H)
   find_library(X11_LIBRARY X11)
   SET(CMAKE_CXX_FLAGS_DEBUG "-g -Wall")
   SET(CMAKE_CXX_FLAGS "-fvisibility=hidden")
 
-  SET(PROJECT_LIBS ${X11_LIBRARY} rt ) #dfhack-md5 dfhack-tixml
+  IF(APPLE)
+    SET(PROJECT_LIBS ${X11_LIBRARY} )
+  ELSE(APPLE)
+    SET(PROJECT_LIBS ${X11_LIBRARY} rt ) #dfhack-md5 dfhack-tixml
+  ENDIF(APPLE)
 ELSE(UNIX)
   SET(PROJECT_LIBS psapi)
 ENDIF(UNIX)
