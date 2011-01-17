@@ -55,44 +55,44 @@ class NormalProcess::Private
     bool suspended;
     bool identified;
     Process * self;
-    bool validate(char * exe_file, uint32_t pid, char * mem_file, vector <VersionInfo *> & known_versions);
+    char *findExeFile(uint32_t pid);
+    bool validate(char * exe_file, uint32_t pid, vector <VersionInfo *> & known_versions);
 };
 
 NormalProcess::NormalProcess(uint32_t pid, vector< VersionInfo* >& known_versions)
 : d(new Private(this))
 {
-    char dir_name [256];
-    char exe_link_name [256];
-    char mem_name [256];
-    char cwd_name [256];
-    char cmdline_name [256];
-    char target_name[1024];
-    int target_result;
+    size_t bufSize = 0;
+    int i;
+    struct kinfo_proc *kp;
+    int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, pid };
+    int nentries;
 
-    d->identified = false;
-    d->my_descriptor = 0;
+    if (sysctl(mib, 4, NULL, &bufSize, NULL, 0) < 0)
+      perror("Failure calling sysctl");
 
-    sprintf(dir_name,"/proc/%d/", pid);
-    sprintf(exe_link_name,"/proc/%d/exe", pid);
-    sprintf(mem_name,"/proc/%d/mem", pid);
-    sprintf(cwd_name,"/proc/%d/cwd", pid);
-    sprintf(cmdline_name,"/proc/%d/cmdline", pid);
+    if ((kp = (struct kinfo_proc *)malloc(bufSize)) == NULL)
+      perror("Memory allocation failure");
 
-    // resolve /proc/PID/exe link
-    target_result = readlink(exe_link_name, target_name, sizeof(target_name)-1);
-    if (target_result == -1)
-    {
-        return;
-    }
-    // make sure we have a null terminated string...
-    target_name[target_result] = 0;
+    if (sysctl(mib, 4, kp, &bufSize, NULL, 0) < 0)
+      perror("Failure calling sysctl");
 
-    // is this the regular linux DF?
-    if (strstr(target_name, "dwarfort.exe") != 0 || strstr(target_name,"Dwarf_Fortress") != 0)
-    {
-        // create linux process, add it to the vector
-        d->identified = d->validate(target_name,pid,mem_name,known_versions );
-        return;
+    nentries = bufSize / sizeof(struct kinfo_proc);
+    kp += nentries - 1;
+    for (i = 0; i < nentries; i++, kp--) {
+        struct extern_proc *p = &(kp->kp_proc);
+
+        // is this the regular linux DF?
+        if (strstr(p->p_comm, "dwarfort.exe") != 0)
+        {
+            char *exe_file = d->findExeFile(pid);
+
+            if (exe_file != NULL) {
+                // create linux process, add it to the vector
+                d->identified = d->validate(exe_file, pid, known_versions);
+                return;
+            }
+        }
     }
 }
 
@@ -110,7 +110,45 @@ bool NormalProcess::isIdentified()
     return d->identified;
 }
 
-bool NormalProcess::Private::validate(char * exe_file,uint32_t pid, char * memFile, vector <VersionInfo *> & known_versions)
+char *NormalProcess::Private::findExeFile(uint32_t pid)
+{
+    char buf[4096], pidstr[10], *exe_file;
+    int fds[2];
+    int f_pid;
+    FILE *fh;
+    
+    snprintf(pidstr, 10, "%d", pid);
+    pipe(fds);
+
+    f_pid = fork();
+    if (f_pid == 0) {
+        close(0);
+        dup2(fds[1], 1);
+        close(2);
+
+        execl("/usr/sbin/lsof", "lsof", "-Fn", "-p", pidstr, NULL);
+        exit(1);
+    }
+
+    fh = fdopen(fds[0], "r");
+    close(fds[1]);
+
+    while (fgets(buf, 4096, fh)) {
+        if (*buf == 'n' && strnstr(buf, "dwarfort.exe", 4096)) {
+            int len = strlen(buf);
+            exe_file = (char *)malloc(len);
+            strncpy(exe_file, buf + 1, len - 1); // skip leading 'n'
+            exe_file[len - 1] = 0;
+            break;
+        }
+    }
+
+    close(fds[0]);
+    waitpid(f_pid, NULL, 0);
+    return exe_file;
+}
+
+bool NormalProcess::Private::validate(char * exe_file, uint32_t pid, vector <VersionInfo *> & known_versions)
 {
     md5wrapper md5;
     // get hash of the running DF process
@@ -122,11 +160,11 @@ bool NormalProcess::Private::validate(char * exe_file,uint32_t pid, char * memFi
     {
         try
         {
-            //cout << hash << " ?= " << (*it)->getMD5() << endl;
+            cout << hash << " ?= " << (*it)->getMD5() << endl;
             if(hash == (*it)->getMD5()) // are the md5 hashes the same?
             {
                 VersionInfo * m = *it;
-                if (VersionInfo::OS_LINUX == m->getOS())
+                if (VersionInfo::OS_APPLE == m->getOS())
                 {
                     VersionInfo *m2 = new VersionInfo(*m);
                     my_descriptor = m2;
@@ -139,7 +177,7 @@ bool NormalProcess::Private::validate(char * exe_file,uint32_t pid, char * memFi
                     continue;
                 }
                 // tell NormalProcess about the /proc/PID/mem file
-                this->memFile = memFile;
+                //this->memFile = memFile;
                 identified = true;
                 return true;
             }
