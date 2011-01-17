@@ -180,33 +180,33 @@ void ProcessEnumerator::Private::EnumPIDs (vector <ProcessID> &PIDs)
 void ProcessEnumerator::Private::EnumPIDs (vector <ProcessID> &PIDs)
 {
 
-	size_t bufSize = 0;
-	int i;
-	struct kinfo_proc *kp;
-	int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0 };
-	int nentries;
+    size_t bufSize = 0;
+    int i;
+    struct kinfo_proc *kp;
+    int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0 };
+    int nentries;
 
-	if (sysctl(mib, 4, NULL, &bufSize, NULL, 0) < 0)
-		perror("Failure calling sysctl");
+    if (sysctl(mib, 4, NULL, &bufSize, NULL, 0) < 0)
+        perror("Failure calling sysctl");
 
-	if ((kp = (struct kinfo_proc *)malloc(bufSize)) == NULL)
-		perror("Memory allocation failure");
+    if ((kp = (struct kinfo_proc *)malloc(bufSize)) == NULL)
+        perror("Memory allocation failure");
 
-	if (sysctl(mib, 4, kp, &bufSize, NULL, 0) < 0)
-		perror("Failure calling sysctl");
+    if (sysctl(mib, 4, kp, &bufSize, NULL, 0) < 0)
+        perror("Failure calling sysctl");
 
-	/* This has to be after the second sysctl since the bufSize
-		may have changed.  */
-	nentries = bufSize / sizeof(struct kinfo_proc);
+    /* This has to be after the second sysctl since the bufSize
+       may have changed.  */
+    nentries = bufSize / sizeof(struct kinfo_proc);
 
-  kp += nentries - 1;
-	for (i = 0; i < nentries; i++, kp--) {
-		struct extern_proc *p = &(kp->kp_proc);
+    kp += nentries - 1;
+    for (i = 0; i < nentries; i++, kp--) {
+        struct extern_proc *p = &(kp->kp_proc);
 
-    uint64_t pid   = p->p_pid;
-    uint64_t ctime = p->p_starttime.tv_sec;
-    PIDs.push_back(ProcessID(ctime,pid));
-	}
+        uint64_t pid   = p->p_pid;
+        uint64_t ctime = p->p_starttime.tv_sec;
+        PIDs.push_back(ProcessID(ctime,pid));
+    }
 }
 
 
