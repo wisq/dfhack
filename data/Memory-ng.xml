@@ -2329,6 +2329,18 @@
             </Group>
         </Offsets>
     </Version>
+
+    <Version name="v0.31.16 Mac" os="apple" base="faek" rebase="0x1b40">
+        <MD5 value="9b73c0d591ab50ca27b2813299fe741f" />
+        <Offsets>
+            <Group name="Position">
+                <Address name="cursor_xyz" value="0x8b33550" />
+            </Group>
+            <Group name="GUI">
+                <Address name="pause_state" value="0x92e5cb0"/>
+            </Group>
+        </Offsets>
+    </Version>
 </DFHack>
 
 

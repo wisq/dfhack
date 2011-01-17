@@ -584,6 +584,11 @@ void VersionInfoFactory::ParseVersion (TiXmlElement* entry, VersionInfo* mem)
         // users are free to use a sane kernel that doesn't do this kind of **** by default
         mem->setBase(0x0);
     }
+    else if(os == "apple")
+    {
+        // FIXME: set this
+        mem->setBase(0x0);
+    }
     else
     {
         throw Error::MemoryXmlBadAttribute("os");
