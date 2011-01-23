@@ -138,7 +138,7 @@ char *NormalProcess::Private::findExeFile(uint32_t pid)
             int len = strlen(buf);
             exe_file = (char *)malloc(len);
             strncpy(exe_file, buf + 1, len - 1); // skip leading 'n'
-            exe_file[len - 1] = 0;
+            exe_file[len - 2] = 0; // chomp newline
             break;
         }
     }
